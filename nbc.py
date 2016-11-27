@@ -6,6 +6,7 @@ import pandas as pandas
 import ijson
 from nltk.stem.porter import PorterStemmer
 from collections import defaultdict
+import math
 
 TEST_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc/test"
 TRAIN_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc/train"
@@ -19,22 +20,44 @@ class NaiveBayesClassification(object):
         self.pd_datas_train['Content'] = self.pd_datas_train['Content'].map(lambda x: self.pre_processing(x))
         self.pd_datas_test['class'] = self.pd_datas_test['Ratings'].map(lambda x: 'positive' if float(x) > 3 else 'negative')
         self.pd_datas_test['Content'] = self.pd_datas_test['Content'].map(lambda x: self.pre_processing(x))
-        self.frequency = defaultdict(int)
+        self.frequency = set()
         self.frequency_positive = defaultdict(int)
         self.frequency_negative = defaultdict(int)
+        self.df_positive = defaultdict(int)
+        self.df_negative = defaultdict(int)
+        self.tf_idf_score_positive = defaultdict(int)
+        self.tf_idf_score_negative = defaultdict(int)
         self.frequency_total = len(self.pd_datas_train.index)
-        self.pd_datas_train['Content'].apply(lambda x: self.build_frequency(x))
-        self.bin = len(self.frequency)
+        
+        self.N_Value = len(self.pd_datas_train.index)
         pd_datas_train_positives= self.pd_datas_train.loc[self.pd_datas_train['class'] == 'positive']
         pd_datas_train_negatives= self.pd_datas_train.loc[self.pd_datas_train['class'] == 'negative']
         self.positive_probability_freq = len(pd_datas_train_positives.index)
         self.negative_probability_freq = len(pd_datas_train_negatives.index)
         pd_datas_train_positives['Content'].apply(lambda x: self.build_frequency_positive(x))
         pd_datas_train_negatives['Content'].apply(lambda x: self.build_frequency_negative(x))
+        self.bin = len(self.frequency)
+        self.build_tf_idf_positive();
+        self.build_tf_idf_negative();
         self.pd_datas_test = self.pd_datas_test.merge(self.pd_datas_test.apply(self.process, axis=1), left_index=True, right_index=True)
         accuracy = self.calculate_accuracy(self.pd_datas_test['class'], self.pd_datas_test['predicted_class'])
         print('accuracy-----',accuracy)
         pandas.DataFrame(self.pd_datas_test).to_csv('result.csv', index=False)
+
+    
+    def build_tf_idf_positive(self):
+        for x in self.frequency_positive:   
+            tf_weight = (1 + math.log10(self.frequency_positive[x]))
+            idf_weight = (math.log10(self.N_Value / self.df_positive[x]))
+            tf_idf_weight = tf_weight * idf_weight
+            self.tf_idf_score_positive[x] = tf_idf_weight
+    
+    def build_tf_idf_negative(self):
+        for x in self.frequency_negative:   
+            tf_weight = (1 + math.log10(self.frequency_negative[x]))
+            idf_weight = (math.log10(self.N_Value / self.df_negative[x]))
+            tf_idf_weight = tf_weight * idf_weight
+            self.tf_idf_score_negative[x] = tf_idf_weight
 
     def parsefiles(self,folder_path):
         pd_datas = pandas.DataFrame([], columns=COLUMN_NAMES)
@@ -77,8 +100,8 @@ class NaiveBayesClassification(object):
         negative_prob_product = 1
         for word in words:
             if word:
-                positive_prob = (self.frequency_positive[word] + 1)/(self.bin+self.frequency_positive_total)
-                negative_prob = (self.frequency_negative[word] + 1)/(self.bin+self.frequency_negative_total)
+                positive_prob = (self.tf_idf_score_positive[word] + 1)/(self.bin+self.frequency_positive_total)
+                negative_prob = (self.tf_idf_score_positive[word] + 1)/(self.bin+self.frequency_negative_total)
                 positive_prob_product = positive_prob_product * positive_prob
                 negative_prob_product = negative_prob_product * negative_prob
         
@@ -90,34 +113,32 @@ class NaiveBayesClassification(object):
         else:
             return pandas.Series(dict(predicted_class="negative"))
     
-    def build_frequency(self,x):
-        title_row = []
-        title_set = x.split(" ")
-        for word in title_set:
-            if word:
-                if word not in title_row:
-                    title_row.append(word)
-                    self.frequency[word] += 1
-
+    
     def build_frequency_positive(self,x):
-        title_row = []
-        title_set = x.split(" ")
-        for word in title_set:
+        row = []
+        word_set = x.split(" ")
+        for word in word_set:
             if word:
                 self.frequency_positive_total = +1
-                if word not in title_row:
-                    title_row.append(word)
-                    self.frequency_positive[word] += 1
+                self.frequency_positive[word] += 1
+                if(word in self.frequency):
+                    self.frequency.add(word)
+                if word not in row:
+                    row.append(word)
+                    self.df_positive[word] += 1
     
     def build_frequency_negative(self,x):
-        title_row = []
-        title_set = x.split(" ")
-        for word in title_set:
+        row = []
+        word_set = x.split(" ")
+        for word in word_set:
             if word:
                 self.frequency_negative_total = +1
-                if word not in title_row:
-                    title_row.append(word)
-                    self.frequency_negative[word] += 1
+                self.frequency_negative[word] += 1
+                if(word in self.frequency):
+                    self.frequency.add(word)
+                if word not in row:
+                    row.append(word)
+                    self.df_negative[word] += 1
     
     def calculate_accuracy(self,labeled_class, predicted_class):
         correct = 0
