@@ -8,8 +8,8 @@ from nltk.stem.porter import PorterStemmer
 from collections import defaultdict
 import math
 
-TEST_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc/test"
-TRAIN_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc/train"
+TEST_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc_new/test_new_1"
+TRAIN_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc_new/train_new"
 COLUMN_NAMES = ['Ratings', 'AuthorLocation', 'Title', 'Author', 'ReviewID', 'Content', 'Date']
 STEMMER = PorterStemmer()
 class NaiveBayesClassification(object):
@@ -40,8 +40,14 @@ class NaiveBayesClassification(object):
         self.build_tf_idf_positive();
         self.build_tf_idf_negative();
         self.pd_datas_test = self.pd_datas_test.merge(self.pd_datas_test.apply(self.process, axis=1), left_index=True, right_index=True)
-        accuracy = self.calculate_accuracy(self.pd_datas_test['class'], self.pd_datas_test['predicted_class'])
-        print('accuracy-----',accuracy)
+        self.calculate_measures(self.pd_datas_test['class'], self.pd_datas_test['predicted_class'])
+        print('accuracy-----',self.accuracy)
+        print('fmeasure-----',self.fmeasure)
+        print('precision-----',self.precision)
+        print('recall-----',self.recall)
+        print('fpr-----',self.fpr)
+        print('no of train records-----',len(self.pd_datas_train.index))
+        print('no of test records-----',len(self.pd_datas_test.index))
         pandas.DataFrame(self.pd_datas_test).to_csv('result.csv', index=False)
 
     
@@ -76,7 +82,7 @@ class NaiveBayesClassification(object):
                                 else:
                                     selected_row.append(row[item])
                             data.append(selected_row)
-                        pd_datas = pd_datas.append(pandas.DataFrame(data, columns=COLUMN_NAMES))
+                        pd_datas = pd_datas.append(pandas.DataFrame(data, columns=COLUMN_NAMES),ignore_index=True)
         return pd_datas
     
     def pre_processing(self, s):
@@ -140,12 +146,28 @@ class NaiveBayesClassification(object):
                     row.append(word)
                     self.df_negative[word] += 1
     
-    def calculate_accuracy(self,labeled_class, predicted_class):
-        correct = 0
-        for idx, row in labeled_class.iteritems():
-            if row == predicted_class[idx]:
-                correct += 1
-        return correct / len(labeled_class)
+    def calculate_measures(self,labeled_class, predicted_class):
+        tp = 0
+        tn = 0
+        fp = 0
+        fn = 0
+        for idx, row in predicted_class.iteritems():
+            if row == 'positive':
+                if row == labeled_class[idx]:
+                    tp += 1
+                if row != labeled_class[idx]:
+                    fp += 1
+            if row == 'negative':
+                if row == labeled_class[idx]:
+                    tn += 1
+                if row != labeled_class[idx]:
+                    fn += 1
+        
+        self.accuracy =  (tp+tn) / len(labeled_class)
+        self.precision = tp/(tp+fp)
+        self.recall = tp/(tp+fn)
+        self.fmeasure = (2*tp)/((2*tp)+fp+fn)
+        self.fpr = fp/(fp+tn)
             
             
 NBC = NaiveBayesClassification()
