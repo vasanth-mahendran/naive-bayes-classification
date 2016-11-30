@@ -7,15 +7,19 @@ import ijson
 from nltk.stem.porter import PorterStemmer
 from collections import defaultdict
 import math
+import time
 
+START_TIME = time.time()
 TEST_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc_new/test_new_1"
 TRAIN_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc_new/train_new"
 COLUMN_NAMES = ['Ratings', 'AuthorLocation', 'Title', 'Author', 'ReviewID', 'Content', 'Date']
 STEMMER = PorterStemmer()
 class NaiveBayesClassification(object):
     def __init__(self):
+        print("--- Reading: %s minutes ---" % round(((time.time() - START_TIME) / 60), 2))
         self.pd_datas_train = self.parsefiles(TRAIN_FOLDER_PATH)
         self.pd_datas_test = self.parsefiles(TEST_FOLDER_PATH)
+        print("--- Stemming: %s minutes ---" % round(((time.time() - START_TIME) / 60), 2))
         self.pd_datas_train['class'] = self.pd_datas_train['Ratings'].map(lambda x: 'positive' if float(x) > 3 else 'negative')
         self.pd_datas_train['Content'] = self.pd_datas_train['Content'].map(lambda x: self.pre_processing(x))
         self.pd_datas_test['class'] = self.pd_datas_test['Ratings'].map(lambda x: 'positive' if float(x) > 3 else 'negative')
@@ -34,11 +38,13 @@ class NaiveBayesClassification(object):
         pd_datas_train_negatives= self.pd_datas_train.loc[self.pd_datas_train['class'] == 'negative']
         self.positive_probability_freq = len(pd_datas_train_positives.index)
         self.negative_probability_freq = len(pd_datas_train_negatives.index)
+        print("--- Building TF_IDF model: %s minutes ---" % round(((time.time() - START_TIME) / 60), 2))
         pd_datas_train_positives['Content'].apply(lambda x: self.build_frequency_positive(x))
         pd_datas_train_negatives['Content'].apply(lambda x: self.build_frequency_negative(x))
         self.bin = len(self.frequency)
         self.build_tf_idf_positive();
         self.build_tf_idf_negative();
+        print("--- NBC: %s minutes ---" % round(((time.time() - START_TIME) / 60), 2))
         self.pd_datas_test = self.pd_datas_test.merge(self.pd_datas_test.apply(self.process, axis=1), left_index=True, right_index=True)
         self.calculate_measures(self.pd_datas_test['class'], self.pd_datas_test['predicted_class'])
         print('accuracy-----',self.accuracy)
@@ -48,7 +54,7 @@ class NaiveBayesClassification(object):
         print('fpr-----',self.fpr)
         print('no of train records-----',len(self.pd_datas_train.index))
         print('no of test records-----',len(self.pd_datas_test.index))
-        pandas.DataFrame(self.pd_datas_test).to_csv('result.csv', index=False)
+        print("--- Done: %s minutes ---" % round(((time.time() - START_TIME) / 60), 2))
 
     
     def build_tf_idf_positive(self):
