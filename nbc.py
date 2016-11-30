@@ -10,8 +10,8 @@ import math
 import time
 
 START_TIME = time.time()
-TEST_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc_new/test_new_1"
-TRAIN_FOLDER_PATH = "/Users/vasanthmahendran/Workspace/Data/nbc_new/train_new"
+TEST_FOLDER_PATH = "/Users/vasanthmahendran/Downloads/json/test/current"
+TRAIN_FOLDER_PATH = "/Users/vasanthmahendran/Downloads/json/train/current"
 COLUMN_NAMES = ['Ratings', 'AuthorLocation', 'Title', 'Author', 'ReviewID', 'Content', 'Date']
 STEMMER = PorterStemmer()
 class NaiveBayesClassification(object):
@@ -83,10 +83,13 @@ class NaiveBayesClassification(object):
                         for row in objects:
                             selected_row = []
                             for item in COLUMN_NAMES:
-                                if item == 'Ratings':
-                                    selected_row.append(row[item]['Overall'])
+                                if item in row.keys():
+                                    if item == 'Ratings':
+                                        selected_row.append(row[item]['Overall'])
+                                    else:
+                                        selected_row.append(row[item])
                                 else:
-                                    selected_row.append(row[item])
+                                    selected_row.append("")
                             data.append(selected_row)
                         pd_datas = pd_datas.append(pandas.DataFrame(data, columns=COLUMN_NAMES),ignore_index=True)
         return pd_datas
