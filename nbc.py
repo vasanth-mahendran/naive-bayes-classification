@@ -14,6 +14,10 @@ TEST_FOLDER_PATH = "/Users/vasanthmahendran/Downloads/json/test/current"
 TRAIN_FOLDER_PATH = "/Users/vasanthmahendran/Downloads/json/train/current"
 COLUMN_NAMES = ['Ratings', 'AuthorLocation', 'Title', 'Author', 'ReviewID', 'Content', 'Date']
 STEMMER = PorterStemmer()
+
+# This class provides all the method to classify review in the trip advisor data set as positive 
+# and negative. It uses bag of words approach to represent each review along with TF_IDf as a form
+# of weight for each word.  
 class NaiveBayesClassification(object):
     def __init__(self):
         print("--- Reading: %s minutes ---" % round(((time.time() - START_TIME) / 60), 2))
@@ -56,7 +60,8 @@ class NaiveBayesClassification(object):
         print('no of test records-----',len(self.pd_datas_test.index))
         print("--- Done: %s minutes ---" % round(((time.time() - START_TIME) / 60), 2))
 
-    
+    # This method process each the word in the positive rows to calculate the tf_idf_weight
+    # by finding term frequency and document frequency with was calculated earlier
     def build_tf_idf_positive(self):
         for x in self.frequency_positive:   
             tf_weight = (1 + math.log10(self.frequency_positive[x]))
@@ -64,13 +69,17 @@ class NaiveBayesClassification(object):
             tf_idf_weight = tf_weight * idf_weight
             self.tf_idf_score_positive[x] = tf_idf_weight
     
+    # This method process each the word in the negative rows to calculate the tf_idf_weight
+    # by finding term frequency and document frequency with was calculated earlier
     def build_tf_idf_negative(self):
         for x in self.frequency_negative:   
             tf_weight = (1 + math.log10(self.frequency_negative[x]))
             idf_weight = (math.log10(self.N_Value / self.df_negative[x]))
             tf_idf_weight = tf_weight * idf_weight
             self.tf_idf_score_negative[x] = tf_idf_weight
-
+    
+    # This method will parse all the JSON files in the given folder and populate the datas
+    # as pandas dataframe using a given column list.
     def parsefiles(self,folder_path):
         pd_datas = pandas.DataFrame([], columns=COLUMN_NAMES)
         for file in os.listdir(folder_path):
@@ -94,6 +103,9 @@ class NaiveBayesClassification(object):
                         pd_datas = pd_datas.append(pandas.DataFrame(data, columns=COLUMN_NAMES),ignore_index=True)
         return pd_datas
     
+    # This method will do the pre-processing needed for the data before applying the data for
+    # naive bayes classification. it will remove empty words,apply stemming on the words,remove 
+    # puntuations and delimeters.
     def pre_processing(self, s):
         try:
             if isinstance(s, str):
@@ -109,6 +121,8 @@ class NaiveBayesClassification(object):
             print("str causing error",s,repr(error))
             return " "
     
+    # This method will process each word in the test review rows to predict its class using 
+    # tf_idf weight of the word and naive bayes classification method. 
     def process(self,x):
         words = x['Content'].split(" ")
         positive_prob_product = 1
@@ -128,7 +142,9 @@ class NaiveBayesClassification(object):
         else:
             return pandas.Series(dict(predicted_class="negative"))
     
-    
+    # This method will process each word in the postive rows to find the term frequency of 
+    # the word and store it in dictionary which can be used later for finding tf_idf weight
+    # of the word
     def build_frequency_positive(self,x):
         row = []
         word_set = x.split(" ")
@@ -142,6 +158,9 @@ class NaiveBayesClassification(object):
                     row.append(word)
                     self.df_positive[word] += 1
     
+    # This method will process each word in the negative rows to find the term frequency of 
+    # the word and store it in dictionary which can be used later for finding tf_idf weight
+    # of the word
     def build_frequency_negative(self,x):
         row = []
         word_set = x.split(" ")
@@ -155,6 +174,10 @@ class NaiveBayesClassification(object):
                     row.append(word)
                     self.df_negative[word] += 1
     
+    # This method will process each predicted class in the result to find true positives
+    # true negatives, false positives, false negatives. Using these values calculate 
+    # accuracy, precision, fmeasure, fpr, recall. These measure can be used to analyze
+    # prediction of nbc in the given data.
     def calculate_measures(self,labeled_class, predicted_class):
         tp = 0
         tn = 0
